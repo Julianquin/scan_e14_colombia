@@ -216,3 +216,16 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+# Datos no versionados: PDFs, PNG y carpetas de datos en cualquier nivel
+**/*.pdf
+**/*.png
+**/recortes_ocr/
+**/e14_pdfs/
+resultados/
+
+# Los JSON son datos de entrada/salida (índices del scraper como
+# allTransmissionCodes.json / departmentsTree.json, _resumen_lote.json, etc.):
+# son externos o se generan, no se versionan. Si algún día hace falta versionar
+# un JSON de configuración, añádelo con `git add -f` o crea una excepción aquí.

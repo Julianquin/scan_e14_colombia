@@ -1,0 +1,5 @@
+# Fase 0 (extracción) y descarga. Instala con: pip install -r requirements.txt
+pymupdf>=1.24
+opencv-python-headless>=4.9
+numpy>=1.26
+requests>=2.31          # solo para descargar_e14.py (fase de descarga)

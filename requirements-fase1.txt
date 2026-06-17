@@ -1,0 +1,11 @@
+# Fase 1 — OCR de números manuscritos.
+# Requiere primero las dependencias de Fase 0 (requirements.txt).
+#
+# El backend en producción es TrOCR-handwritten, que se corre en Kaggle GPU
+# (ver fase1/FLUJO_KAGGLE.md). Para correr el OCR/comparativas en local:
+transformers>=4.38
+torch>=2.2
+pillow>=10.0
+
+# PaddleOCR se evaluó y se descartó en CPU (bug oneDNN + ~43 GB RAM). Si quieres
+# reproducir esa comparación: pip install paddlepaddle paddleocr
