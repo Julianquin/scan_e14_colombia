@@ -221,6 +221,13 @@ __marimo__/
 # Datos no versionados: PDFs, PNG y carpetas de datos en cualquier nivel
 **/*.pdf
 **/*.png
+**/*.gz
+**/*.zip
+**/*.csv
+**/*.jsonl
+**/*.pt
+**/*.npz
+
 **/recortes_ocr/
 **/e14_pdfs/
 resultados/

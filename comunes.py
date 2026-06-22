@@ -38,27 +38,23 @@ CASILLAS_NUMERICAS = NIVELACION + CAND + AGREGADOS
 
 def parsear_ruta(pdf_path) -> dict:
     """
-    Extrae los códigos de ubicación de la ruta del PDF.
+    Extrae el ejemplar y los códigos de ubicación de la ruta del PDF.
 
-    Estructura esperada:
-        .../PRE/{dep}/{muni}/{zona}/{puesto}/{mesa}/archivo.pdf
+    Estructura (cualquier ejemplar: PRE, DELEGADOS, TRANSMISION...):
+        .../{ejemplar}/{dep}/{muni}/{zona}/{puesto}/{mesa}/archivo.pdf
 
-    Devuelve siempre las claves dep, muni, zona, puesto, mesa y archivo
-    (vacías si la ruta no sigue el patrón).
+    Se ancla por POSICIÓN (los 6 directorios sobre el archivo), no por el
+    literal "PRE", para soportar varios ejemplares. Path.parts usa el
+    separador nativo, así que sirve igual en Windows y Linux.
     """
     p = Path(pdf_path)
     partes = p.parts
-    datos = {"dep": "", "muni": "", "zona": "", "puesto": "", "mesa": "",
-             "archivo": p.name}
-    try:
-        i = partes.index("PRE")
-        datos["dep"]    = partes[i + 1]
-        datos["muni"]   = partes[i + 2]
-        datos["zona"]   = partes[i + 3]
-        datos["puesto"] = partes[i + 4]
-        datos["mesa"]   = partes[i + 5]
-    except (ValueError, IndexError):
-        pass
+    datos = {"ejemplar": "", "dep": "", "muni": "", "zona": "", "puesto": "",
+             "mesa": "", "archivo": p.name}
+    cols = partes[-7:-1]                # [ejemplar, dep, muni, zona, puesto, mesa]
+    if len(cols) == 6:
+        (datos["ejemplar"], datos["dep"], datos["muni"],
+         datos["zona"], datos["puesto"], datos["mesa"]) = cols
     return datos
 
 
@@ -71,7 +67,8 @@ if __name__ == "__main__":
     # Auto-comprobación rápida (no requiere dependencias externas).
     assert len(CAND) == 13
     assert len(CASILLAS_NUMERICAS) == 20
-    assert parsear_ruta("x/PRE/05/001/00/01/001/acta.pdf")["dep"] == "05"
+    assert parsear_ruta(r"x/DELEGADOS/03/004/002/04/007/h.pdf")["dep"] == "03"
+    assert parsear_ruta(r"x/DELEGADOS/03/004/002/04/007/h.pdf")["ejemplar"] == "DELEGADOS"
     assert parsear_ruta("ruta/rara/acta.pdf")["dep"] == ""
     assert solo_digitos("1o7") == "17"
     print("comunes.py OK")

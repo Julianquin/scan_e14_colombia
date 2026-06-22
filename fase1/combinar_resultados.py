@@ -27,7 +27,7 @@ def main():
     ubic_mesa = {}
     with open(a.numeros_csv, encoding="utf-8") as f:
         for r in csv.DictReader(f):
-            clave = (r["dep"], r["muni"], r["zona"], r["puesto"], r["mesa"])
+            clave = (r.get("ejemplar",""), r["dep"], r["muni"], r["zona"], r["puesto"], r["mesa"])
             num = r.get("numero", "")
             por_mesa[clave][r["etiqueta"]] = int(num) if num.isdigit() else None
             ubic_mesa[clave] = r
@@ -42,8 +42,8 @@ def main():
         r = chk.chequear(completo)
         alerta = chk.nivel_alerta(r)
         conteo[alerta] = conteo.get(alerta,0)+1
-        dep,muni,zona,puesto,mesa = clave
-        fila = {"dep":dep,"muni":muni,"zona":zona,"puesto":puesto,"mesa":mesa,
+        ejemplar,dep,muni,zona,puesto,mesa = clave
+        fila = {"ejemplar":ejemplar,"dep":dep,"muni":muni,"zona":zona,"puesto":puesto,"mesa":mesa,
                 "suma_candidatos":r.suma_candidatos,"suma_calculada":r.suma_calculada,
                 "suma_total":r.suma_total_leida,"total_e11":r.total_e11,
                 "cuadra_suma":r.cuadra_suma,"cuadra_e11":r.cuadra_e11,

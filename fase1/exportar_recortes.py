@@ -40,7 +40,8 @@ def procesar_uno(args) -> list:
     pdf_path, salida = args
     salida = Path(salida)
     ubic = parsear_ruta(pdf_path)
-    clave = f"{ubic['dep']}-{ubic['muni']}-{ubic['zona']}-{ubic['puesto']}-{ubic['mesa']}"
+    clave = f"{ubic['ejemplar']}-{ubic['dep']}-{ubic['muni']}-{ubic['zona']}-{ubic['puesto']}-{ubic['mesa']}"
+# → DELEGADOS-03-004-002-04-007__cand_10.png
     filas = []
     try:
         res = ex.procesar_acta(pdf_path, guardar=False)
@@ -105,8 +106,8 @@ def main():
     indice = salida / "indice_recortes.csv"
     nuevo = not indice.exists()
     f = open(indice, "a", newline="", encoding="utf-8")
-    campos = ["dep","muni","zona","puesto","mesa","etiqueta","archivo","tinta",
-              "n_posiciones","tipos_posicion","n_digitos","banderas","error"]
+    campos = ["ejemplar","dep","muni","zona","puesto","mesa","etiqueta","archivo","tinta",
+          "n_posiciones","tipos_posicion","n_digitos","banderas","error"]
     w = csv.DictWriter(f, fieldnames=campos, extrasaction="ignore")
     if nuevo:
         w.writeheader()
