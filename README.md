@@ -38,7 +38,7 @@ Arquitectura completa y decisiones técnicas en **[docs/ROADMAP.md](docs/ROADMAP
 ```
 scan_e14_colombia/
 ├── README.md                 # este fichero (punto de entrada)
-├── pyproject.toml            # (o requirements.txt + requirements-ocr.txt)
+├── pyproject.toml            # (o requirements.txt + requirements-fase1.txt)
 ├── .gitignore                # data/, models/, *.pdf, *.pt, *.json.gz, __pycache__/ ...
 │
 ├── e14/                      # PAQUETE: todo el código, reutilizable y agnóstico de ronda
@@ -66,7 +66,7 @@ scan_e14_colombia/
 
 ```bash
 pip install -r requirements.txt          # base (descarga, monitor, auditoría)
-pip install -r requirements-ocr.txt      # extra OCR: torch + opencv (Fase 1)
+pip install -r requirements-fase1.txt    # extra OCR: torch + opencv (Fase 1)
 ```
 
 > El extra de OCR (torch/opencv) es pesado y opcional: si solo usas el monitor o

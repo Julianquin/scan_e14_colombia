@@ -108,6 +108,74 @@ def limpiar_para_ocr(crop: np.ndarray) -> np.ndarray:
                 max(0, xs0 - m):min(w, xs1 + m)]
 
 
+def binarizar_ink(crop: np.ndarray, umbral: int = 150) -> np.ndarray:
+    """
+    Blanco/negro puro por umbral de intensidad: la tinta manuscrita real es
+    marcadamente oscura (perfil medido: ~0-100), mientras que el marco
+    impreso de cada celda en CLAVEROS (fuente a color/JPEG, no bitonal como
+    DELEGADOS/TRANSMISION) es gris claro (~180-220, casi el mismo tono que el
+    fondo ~230-250) — un umbral entre esos dos rangos separa uno de otro.
+    Esto es lo que TrOCR confunde con un dígito de más (típicamente un '1'
+    fantasma antes del número real). No sirve para las barras de borde
+    SÓLIDAS de DELEGADOS/TRANSMISION (son tan oscuras como la tinta real,
+    ver quitar_barras_borde) — usar ambas en cadena: primero esta, después
+    quitar_barras_borde.
+    """
+    gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY) if crop.ndim == 3 else crop
+    _, binaria = cv2.threshold(gray, umbral, 255, cv2.THRESH_BINARY)
+    return binaria
+
+
+def quitar_barras_borde(crop: np.ndarray, banda_borde: float = 0.15,
+                        umbral: float = 0.85, halo: int = 2) -> np.ndarray:
+    """
+    Borra del recorte las líneas rectas de borde (de la celda o de una vecina)
+    que TrOCR confunde con un '1' — SIN recortar ni redimensionar la imagen,
+    a diferencia de limpiar_para_ocr, que además descarta manchas sólidas
+    (relleno>0.62) para aislar dígitos y en 2da vuelta eso borraba ceros
+    manuscritos legítimos de BLANCO/NULO/NO_MARCADO (óvalos sólidos pequeños).
+
+    No usa componentes conectados: cuando la barra TOCA al dígito (caso común,
+    p.ej. un '0' pegado al borde derecho) ambos se funden en un solo blob y un
+    filtro por forma de componente ya no los distingue. En cambio, borra
+    directamente filas/columnas dentro de la banda_borde (15% más cercano a
+    cada lado) cuya densidad de tinta supera el umbral — una línea recta de
+    borde es ~100% densa en TODA su fila/columna; un trazo de dígito, aunque
+    pase cerca del borde, no lo es. `halo` expande cada columna/fila detectada
+    ese nº de píxeles a cada lado: el núcleo de la línea es ~100% denso pero
+    el antialiasing dejaba un borde gris parcial (<umbral) a los lados que
+    sin esto sobrevivía como una línea fina visible. Todo lo demás queda
+    intacto en su posición y tamaño original.
+    """
+    gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY) if crop.ndim == 3 else crop.copy()
+    h, w = gray.shape
+    if h < 6 or w < 6:
+        return gray
+    out = gray.copy()
+    _, binary = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY_INV)
+
+    col_frac = binary.sum(axis=0) / 255 / h
+    row_frac = binary.sum(axis=1) / 255 / w
+    banda_w = max(1, int(w * banda_borde))
+    banda_h = max(1, int(h * banda_borde))
+
+    col_mask = np.zeros(w, dtype=bool)
+    cols = np.concatenate([np.arange(0, banda_w), np.arange(w - banda_w, w)])
+    col_mask[cols] = col_frac[cols] > umbral
+    if col_mask.any() and halo:
+        col_mask = np.convolve(col_mask, np.ones(2 * halo + 1, dtype=bool), mode="same") > 0
+    out[:, col_mask] = 255
+
+    row_mask = np.zeros(h, dtype=bool)
+    filas = np.concatenate([np.arange(0, banda_h), np.arange(h - banda_h, h)])
+    row_mask[filas] = row_frac[filas] > umbral
+    if row_mask.any() and halo:
+        row_mask = np.convolve(row_mask, np.ones(2 * halo + 1, dtype=bool), mode="same") > 0
+    out[row_mask, :] = 255
+
+    return out
+
+
 def segmentar_digitos(crop: np.ndarray, max_digitos: int = 3) -> list[np.ndarray]:
     """
     Aísla los dígitos manuscritos de una casilla por componentes conectados.

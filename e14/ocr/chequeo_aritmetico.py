@@ -48,15 +48,20 @@ def _val(numeros: dict, clave: str) -> Optional[int]:
         return None
 
 
-def chequear(numeros: dict) -> ResultadoChequeo:
+def chequear(numeros: dict, cand: list = CAND) -> ResultadoChequeo:
     """
     `numeros` es un dict {etiqueta: valor_int} con las lecturas. Las casillas
     vacías deben venir como 0 (no como None) para distinguir "leído como vacío"
     de "no se pudo leer".
+
+    `cand`: lista de etiquetas de candidato a sumar. Default = CAND (13,
+    1ra vuelta). Para 2da vuelta pasar comunes.CAND_2V (2 candidatos) — si no,
+    chequear() busca "cand_01".."cand_13" que no existen en `numeros` y todo
+    sale INCOMPLETO.
     """
     r = ResultadoChequeo()
 
-    cand_vals = [_val(numeros, c) for c in CAND]
+    cand_vals = [_val(numeros, c) for c in cand]
     blanco = _val(numeros, "BLANCO")
     nulo = _val(numeros, "NULO")
     no_marcado = _val(numeros, "NO_MARCADO")

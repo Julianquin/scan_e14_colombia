@@ -91,7 +91,7 @@ flush()
 print(f"\nLeídos {len(resultados):,} recortes en {(time.time()-t0)/60:.1f} min")
 
 # %% celda 5 — Guardar CSV
-campos = ["dep","muni","zona","puesto","mesa","etiqueta","numero","texto_crudo","archivo","tinta"]
+campos = ["ejemplar","dep","muni","zona","puesto","mesa","etiqueta","numero","texto_crudo","archivo","tinta"]
 with open(SALIDA, "w", newline="", encoding="utf-8") as f:
     w = csv.DictWriter(f, fieldnames=campos, extrasaction="ignore")
     w.writeheader(); w.writerows(resultados)

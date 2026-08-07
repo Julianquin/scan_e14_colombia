@@ -20,7 +20,11 @@ from pathlib import Path
 # ─────────────────────────────────────────────────────────────────────────────
 
 CANDIDATOS = list(range(1, 14))                       # 1..13
-CAND = [f"cand_{i:02d}" for i in CANDIDATOS]          # ["cand_01", ..., "cand_13"]
+CAND = [f"cand_{i:02d}" for i in CANDIDATOS]          # ["cand_01", ..., "cand_13"] — 1ra vuelta
+
+# 2da vuelta: solo 2 candidatos, etiquetas de posiciones_2v.CELDAS_2V (no confundir
+# con CAND de arriba — nombres distintos, "CANDIDATO_XX" no "cand_XX").
+CAND_2V = ["CANDIDATO_01", "CANDIDATO_02"]
 
 # Bloque de nivelación de la mesa (página 1).
 NIVELACION = ["TOTAL_E11", "TOTAL_URNA", "TOTAL_INCINERADOS"]

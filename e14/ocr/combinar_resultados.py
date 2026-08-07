@@ -14,13 +14,18 @@ from collections import defaultdict
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import chequeo_aritmetico as chk
+import comunes
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("numeros_csv", help="numeros_leidos.csv (de Kaggle)")
     ap.add_argument("--salida", default="actas_verificadas.csv")
+    ap.add_argument("--segunda-vuelta", action="store_true",
+                    help="usa comunes.CAND_2V (2 candidatos: CANDIDATO_01/02) en vez de "
+                         "chk.CAND (13 candidatos de 1ra vuelta: cand_01..cand_13)")
     a = ap.parse_args()
+    cand = comunes.CAND_2V if a.segunda_vuelta else chk.CAND
 
     # Agrupar por mesa
     por_mesa = defaultdict(dict)
@@ -37,9 +42,9 @@ def main():
     for clave, numeros in por_mesa.items():
         # Las casillas no leídas (vacías) se asumen 0
         completo = {}
-        for et in chk.CAND + ["BLANCO","NULO","NO_MARCADO","SUMA_TOTAL","TOTAL_E11","TOTAL_URNA","TOTAL_INCINERADOS"]:
+        for et in cand + ["BLANCO","NULO","NO_MARCADO","SUMA_TOTAL","TOTAL_E11","TOTAL_URNA","TOTAL_INCINERADOS"]:
             completo[et] = numeros.get(et, 0) if numeros.get(et) is not None else 0
-        r = chk.chequear(completo)
+        r = chk.chequear(completo, cand=cand)
         alerta = chk.nivel_alerta(r)
         conteo[alerta] = conteo.get(alerta,0)+1
         ejemplar,dep,muni,zona,puesto,mesa = clave
@@ -49,7 +54,7 @@ def main():
                 "cuadra_suma":r.cuadra_suma,"cuadra_e11":r.cuadra_e11,
                 "dif_suma":r.diferencia_suma,"dif_e11":r.diferencia_e11,
                 "alerta":alerta}
-        for et in chk.CAND + ["BLANCO","NULO","NO_MARCADO","SUMA_TOTAL","TOTAL_E11","TOTAL_URNA","TOTAL_INCINERADOS"]:
+        for et in cand + ["BLANCO","NULO","NO_MARCADO","SUMA_TOTAL","TOTAL_E11","TOTAL_URNA","TOTAL_INCINERADOS"]:
             fila[et] = completo[et]
         filas.append(fila)
 

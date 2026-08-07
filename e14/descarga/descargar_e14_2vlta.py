@@ -7,6 +7,7 @@ y departmentsTree.json.
 
 Uso de prueba:
     python descargar_e14.py --codes allTransmissionCodes.json --tree departmentsTree.json --out e14_pdfs --limit 20
+    python e14/descarga/descargar_e14_2vlta.py --codes /home/julianquin/proyectos/scan_e14_colombia/data/segunda_vuelta/codes_snapshots/latest.json --tree /home/julianquin/proyectos/scan_e14_colombia/data/manifests/departmentsTree.json --out /home/julianquin/proyectos/scan_e14_colombia/data/segunda_vuelta/e14_pdfs_2v_t
 
 Corrida completa:
     python descargar_e14.py --codes allTransmissionCodes.json --tree departmentsTree.json --out e14_pdfs --workers 4
@@ -32,7 +33,7 @@ from urllib.parse import quote
 import requests
 
 
-DEFAULT_BASE_URL = "https://e14segundavueltapresidentet.registraduria.gov.co" # "https://divulgacione14presidentet.registraduria.gov.co"
+DEFAULT_BASE_URL = "https://e14segundavueltapresidente.registraduria.gov.co" # "https://divulgacione14presidentet.registraduria.gov.co"
 DEFAULT_CORPORATION_FOLDER = "PRE"
 
 RETRIABLE_HTTP_STATUS = {408, 425, 429, 500, 502, 503, 504}
