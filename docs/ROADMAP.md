@@ -22,7 +22,8 @@ sistema marca, cuantifica y documenta; el juicio es humano.
 | Sin presupuesto cloud (Google Vision ≈ 500-600 USD) | OCR local/gratuito: TrOCR-handwritten en Kaggle GPU |
 | CPU local sin GPU | Fase 0 (extracción) en CPU local; solo el OCR va a Kaggle |
 | Kaggle: 30 h/semana GPU, datasets 100 GB persistentes | Flujo por lotes: exportar recortes → dataset → notebook → CSV |
-| PDFs = escaneos **binarizados B/N** (~200 DPI) | La presión del trazo y el color de tinta NO sobreviven; el forense morfológico se limita a grosor, densidad y geometría |
+| PDFs de DELEGADOS/TRANSMISIÓN = escaneos **binarizados 1 bit** (860×2606 px) | En ESOS dos la presión del trazo y el color de tinta NO sobreviven; el forense morfológico se limita a grosor, densidad y geometría. **NO aplica a CLAVEROS** — ver abajo |
+| PDFs de **CLAVEROS = JPEG RGB 8 bits, 1260×3897 px (~300 dpi)** | ✅ **Corregido 2026-08-24**: el ejemplar de claveros SÍ conserva color, presión y niveles de gris (249 niveles medidos). La restricción de "todo es binarizado" era falsa y estaba guiando mal el diseño del forense — ver [FORENSE_COLOR.md](FORENSE_COLOR.md) |
 | Fuente pública = ejemplar de TRANSMISIÓN (visor Registraduría) | El cruce entre ejemplares depende de conseguir otros juegos; el pipeline se diseña ejemplar-agnóstico |
 
 ## 3. Mapeo: categorías de denuncia → fases del sistema
