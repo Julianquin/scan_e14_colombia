@@ -24,14 +24,24 @@ copiando scripts. Cada ronda es solo un **directorio de datos** bajo `data/`.
 |------|-------------|--------|
 | Descarga | Bajar los PDFs del visor oficial (incremental, reanudable) | ✅ 1ª vuelta · 🟡 2ª en curso |
 | Extracción (Fase 0) | Recortar de cada acta las 21 casillas | ✅ Cerrada y validada |
-| OCR de dígitos (Fase 1) | Clasificador CNN por dígito + auto-entrenamiento + decodificador aritmético | 🟢 ~53% de cuadre (desde 7,6% de TrOCR) |
+| OCR de dígitos (Fase 1) | CNN 48×48 en gris, 11 clases (con RELLENO para las aspas) | ✅ **96,9% de acierto por casilla** contra el escrutinio oficial |
 | **Comparación entre ejemplares** | DELEGADOS vs TRANSMISIÓN por mesa/candidato | 🟡 **Foco principal actual** |
 | Enmendaduras intra-dígito | Detección de retoque en el recuadro de centenas | ⬜ Diseño |
 | Monitor + integridad del manifiesto | Vigilancia del `allTransmissionCodes.json` con cadena a prueba de manipulación | ✅ Operativo |
 | Reporte de auditoría | Consolidado por mesa (hash, cuadre, tasa base) | ✅ Operativo |
-| Cruce con preconteo oficial (Fase 2) | Desviación por mesa frente al dato oficial | ⬜ Pendiente |
+| **Auditoría preconteo vs escrutinio** | Los dos conteos oficiales, mesa a mesa (no depende del OCR) | ✅ Operativo — [DATOS_OFICIALES.md](docs/DATOS_OFICIALES.md) |
+| Cruce papel vs oficial (Fase 2) | Lectura OCR contra los dos conteos oficiales | 🟡 Datos listos, falta el cruce |
 
-Arquitectura completa y decisiones técnicas en **[docs/ROADMAP.md](docs/ROADMAP.md)**.
+**📄 Informe de auditoría de la 2ª vuelta: [docs/INFORME_2V.md](docs/INFORME_2V.md)**
+(se regenera con `python -m e14.informe.consolidado`).
+
+**Estado, scope y qué falta para producción: [docs/ESTADO_Y_SCOPE.md](docs/ESTADO_Y_SCOPE.md).**
+Arquitectura y decisiones técnicas en **[docs/ROADMAP.md](docs/ROADMAP.md)**;
+casos de uso y tipologías en **[docs/CASOS_DE_USO.md](docs/CASOS_DE_USO.md)**.
+
+> **Margen de la 2ª vuelta: 251.854 votos (0,96 % — 2,1 votos por mesa).** Es el
+> marco de todo el proyecto: la pregunta útil no es "¿hubo fraude?" sino
+> **"¿cuántos votos están en disputa por anomalías, frente a 251.854?"**
 
 ## Estructura del repositorio
 

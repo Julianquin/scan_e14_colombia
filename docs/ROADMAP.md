@@ -83,9 +83,23 @@ tasa real de lectura de TrOCR y decidir si basta o si conviene afinar
 
 Ataca la denuncia **#4**.
 
-- **2a (factible ya)**: descargar los resultados numéricos oficiales por mesa
-  (divulgación del preconteo y/o E-24 del escrutinio) y cruzarlos contra la
-  lectura OCR del papel. Discrepancia papel-vs-dato-oficial = señal de oro.
+- **2a · ✅ DATOS CONSEGUIDOS (2026-08-26)**: los archivos oficiales **MMV**
+  (mesa a mesa con votos) traen el **preconteo Y el escrutinio** de cada mesa,
+  para ambas vueltas, con hashes oficiales que verifican. Ver
+  **[DATOS_OFICIALES.md](DATOS_OFICIALES.md)**.
+  - `e14/oficial/mmv.py` — carga y verificación de integridad.
+  - `e14/oficial/auditar.py` — auditoría preconteo vs escrutinio con tipologías
+    y test de direccionalidad. **No depende del OCR**, así que da resultados
+    firmes hoy.
+  - Traen además el **tope legal de votantes por mesa** (INDICADORES), que es el
+    `--cap-mesa` que `limite_habilitados.py` pedía confirmar a mano.
+  - Resultado 2ª vuelta: 1.151 mesas cambiaron (0,94 %), efecto neto +683 votos
+    sobre un margen de 251.854, y la direccionalidad es compatible con error de
+    transcripción. Dos permutaciones verificadas contra el papel: en ambas el
+    escrutinio corrigió al preconteo.
+- **2a-bis (pendiente)**: cruzar la lectura OCR del papel contra esos dos
+  conteos oficiales. Con tres fuentes por mesa hay voto mayoritario 2-vs-1, así
+  que el OCR no necesita ser perfecto: necesita ser el tercer voto.
 - **2b (pipeline ejemplar-agnóstico)**: el extractor procesa cualquier juego de
   E-14 con el mismo formato. *Comprobado en la práctica*: el acta de validación
   de Medellín es un ejemplar **DELEGADOS** y se procesó idéntico al de

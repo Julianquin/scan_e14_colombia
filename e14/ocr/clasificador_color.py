@@ -135,54 +135,95 @@ def _split_por_mesa(meta, frac_val=0.2, semilla=0):
     return ~es_val, es_val
 
 
-def entrenar(npz, modelo_out="digitnet_color.pt", epochs=40, batch=256, dev=None, gris=False):
+def entrenar(npz, modelo_out="digitnet_color.pt", epochs=40, batch=256, dev=None,
+             gris=False, n_clases=None):
     torch, nn = _torch()
     dev = dev or ("cuda" if torch.cuda.is_available() else "cpu")
     d = np.load(npz, allow_pickle=True)
     X, y, meta = d["X"], d["y"], d["meta"]
-    if gris:
+    if X.shape[-1] == 1:
+        # dataset ya guardado en 1 canal: se replica a 3 EN EL LOTE, no aquí,
+        # para no crear una copia del array completo en RAM.
+        print("dataset en 1 canal (gris) -> se replica a 3 en cada lote")
+        gris = False                      # nada que convertir
+    elif gris:
         X = a_gris(X)
         print("MODO CONTROL: sin color (gris replicado a 3 canales)")
+    if n_clases is None:
+        n_clases = int(y.max()) + 1
     tr, va = _split_por_mesa(meta)
     n_mesas = len(np.unique([m.split("|")[0] for m in meta]))
     print(f"cajas={len(y):,}  mesas={n_mesas:,}  train={tr.sum():,}  val={va.sum():,}  dev={dev}")
-    print(f"distribución de dígitos: {np.bincount(y, minlength=10).tolist()}")
+    print(f"clases: {n_clases}   distribución: {np.bincount(y, minlength=n_clases).tolist()}")
 
-    # (N,H,W,3) uint8 -> (N,3,H,W) float
-    Xt = torch.from_numpy(X).permute(0, 3, 1, 2).float().div(255)
-    yt = torch.from_numpy(y).long()
-    Xtr, ytr = Xt[tr].to(dev), yt[tr].to(dev)
-    Xva, yva = Xt[va].to(dev), yt[va].to(dev)
+    # Los datos se quedan en RAM y en uint8; a la GPU va SÓLO el lote de turno.
+    #
+    # No subir el dataset entero: con 209.544 cajas eran 5,79 GB residentes en
+    # VRAM, y crecía lineal con el dataset. Sumado al pico de la validación
+    # (abajo) desbordaba los 24 GB de la tarjeta y **colgaba la máquina entera**
+    # al terminar la primera época. Pasó dos veces.
+    itr, iva = np.where(tr)[0], np.where(va)[0]
+    ytr = torch.from_numpy(y[itr]).long().to(dev)
+    yva = torch.from_numpy(y[iva]).long().to(dev)
 
-    cuenta = np.bincount(y[tr], minlength=10).astype(np.float32)
-    pesos = torch.from_numpy((cuenta.sum() / np.maximum(cuenta, 1))).float()
-    pesos = (pesos / pesos.mean()).to(dev)
+    def a_lote(idx):
+        """uint8 (N,H,W,C) -> float32 (B,3,H,W) en GPU, sólo las filas de idx.
+        Si el dataset viene en 1 canal, se replica a 3 aquí (barato por lote)."""
+        a = torch.from_numpy(X[idx]).to(dev, non_blocking=True)
+        a = a.permute(0, 3, 1, 2).float().div_(255)
+        return a.expand(-1, 3, -1, -1) if a.shape[1] == 1 else a
 
-    red = construir_red_color().to(dev)
+    # pesos ACOTADOS: una clase con muy pocos ejemplos recibiría un peso enorme
+    # y dispararía el loss hasta colapsar el entrenamiento.
+    cuenta = np.bincount(y[tr], minlength=n_clases).astype(np.float32)
+    hay = cuenta > 0
+    w = np.zeros(n_clases, np.float32)
+    w[hay] = cuenta[hay].sum() / cuenta[hay]
+    w[hay] = np.clip(w[hay] / w[hay].mean(), 0.2, 10.0)
+    pesos = torch.from_numpy(w).to(dev)
+
+    red = construir_red_color(n_clases).to(dev)
     opt = torch.optim.AdamW(red.parameters(), lr=2e-3, weight_decay=1e-4)
     sched = torch.optim.lr_scheduler.OneCycleLR(
-        opt, max_lr=2e-3, total_steps=epochs * max(1, len(Xtr) // batch + 1))
+        opt, max_lr=2e-3, total_steps=epochs * max(1, len(itr) // batch + 1))
     lossf = nn.CrossEntropyLoss(weight=pesos, label_smoothing=0.05)
+
+    def evaluar_val(lote_val=512):
+        """Validación POR LOTES.
+
+        `torch.no_grad()` evita guardar el grafo, pero NO las activaciones
+        intermedias del forward: evaluar las 41.908 imágenes de validación de
+        una sola vez pedía ~12 GB sólo en la primera convolución (32 canales de
+        48x48), y hay seis antes del pooling. De ahí el cuelgue al cerrar la
+        época 1."""
+        red.eval()
+        aciertos = 0
+        with torch.no_grad():
+            for i in range(0, len(iva), lote_val):
+                sl = slice(i, i + lote_val)
+                aciertos += (red(a_lote(iva[sl])).argmax(1) == yva[sl]).sum().item()
+        return aciertos / max(1, len(iva))
 
     mejor, mejor_sd = 0.0, None
     for ep in range(1, epochs + 1):
         red.train()
-        perm = torch.randperm(len(Xtr), device=dev)
+        perm = np.random.default_rng(ep).permutation(len(itr))
         for i in range(0, len(perm), batch):
-            idx = perm[i:i + batch]
-            xb = _augmenta_lote(Xtr[idx])
+            sel = perm[i:i + batch]
+            xb = _augmenta_lote(a_lote(itr[sel]))
             opt.zero_grad()
-            loss = lossf(red(xb), ytr[idx])
+            loss = lossf(red(xb), ytr[torch.from_numpy(sel).to(dev)])
             loss.backward()
             opt.step()
             sched.step()
-        red.eval()
-        with torch.no_grad():
-            acc = (red(Xva).argmax(1) == yva).float().mean().item()
+        acc = evaluar_val()
         if acc > mejor:
-            mejor, mejor_sd = acc, {k: v.clone() for k, v in red.state_dict().items()}
+            mejor, mejor_sd = acc, {k: v.detach().cpu().clone()
+                                    for k, v in red.state_dict().items()}
         if ep % 5 == 0 or ep == 1:
-            print(f"  ep{ep:3d}  val_acc(por dígito) = {acc:.4f}   (mejor {mejor:.4f})")
+            vram = torch.cuda.max_memory_allocated() / 1e9 if dev == "cuda" else 0
+            print(f"  ep{ep:3d}  val_acc(por dígito) = {acc:.4f}   (mejor {mejor:.4f})"
+                  f"   VRAM pico {vram:.2f} GB")
 
     torch.save(mejor_sd, modelo_out)
     print(f"\nMejor val_acc por dígito: {mejor:.4f}  -> {modelo_out}")
@@ -191,24 +232,33 @@ def entrenar(npz, modelo_out="digitnet_color.pt", epochs=40, batch=256, dev=None
 
 
 # --------------------------------- evaluación ---------------------------------
-def cargar(modelo_pt, dev=None):
+def cargar(modelo_pt, dev=None, n_clases=None):
     torch, _ = _torch()
     dev = dev or ("cuda" if torch.cuda.is_available() else "cpu")
-    red = construir_red_color()
-    red.load_state_dict(torch.load(modelo_pt, map_location=dev, weights_only=False))
+    sd = torch.load(modelo_pt, map_location=dev, weights_only=False)
+    if n_clases is None:      # deducir del checkpoint: última capa lineal
+        n_clases = next(v.shape[0] for k, v in reversed(list(sd.items()))
+                        if k.endswith("weight") and v.ndim == 2)
+    red = construir_red_color(n_clases)
+    red.load_state_dict(sd)
     return red.eval().to(dev), dev
 
 
-def evaluar(dir_pdfs, modelo_pt, desde=0, limite=None, dev=None, gris=False):
-    """Re-lee actas CRUDAS con el modelo de color y mide el % que CUADRA.
-    `desde` permite saltar las actas usadas para construir el dataset."""
+def evaluar(dir_pdfs, modelo_pt, desde=0, limite=None, dev=None, gris=False,
+            n_clases=10):
+    """Re-lee actas CRUDAS con el modelo y mide el % que CUADRA.
+    `desde` permite saltar las actas usadas para construir el dataset.
+
+    n_clases=11 activa la interpretación con la clase RELLENO (ver
+    `dataset_oficial.py`): las posiciones sin dígito se descartan en vez de
+    forzarse a un número."""
     torch, _ = _torch()
     import posiciones_2v as P
     from e14.comunes import CAND_2V
     from e14.ocr.chequeo_aritmetico import chequear
     from e14.ocr.dataset_color import cajas_de_acta
 
-    red, dev = cargar(modelo_pt, dev)
+    red, dev = cargar(modelo_pt, dev, n_clases)
     pdfs = [p for p in Path(dir_pdfs).rglob("*.pdf") if "_logs" not in p.parts]
     pdfs = pdfs[desde: desde + limite if limite else None]
     print(f"actas a evaluar: {len(pdfs):,}  (desde={desde}, dev={dev})")
@@ -235,8 +285,13 @@ def evaluar(dir_pdfs, modelo_pt, desde=0, limite=None, dev=None, gris=False):
             x = torch.from_numpy(arr).permute(0, 3, 1, 2).float().div(255).to(dev)
             with torch.no_grad():
                 dig = red(x).argmax(1).cpu().numpy()
-            valores = {nombres[j]: int("".join(str(d) for d in dig[j:j + 3]))
-                       for j in range(0, len(nombres), 3)}
+            if n_clases > 10:
+                from e14.ocr.dataset_oficial import interpretar
+                valores = {nombres[j]: interpretar(dig[j:j + 3])
+                           for j in range(0, len(nombres), 3)}
+            else:
+                valores = {nombres[j]: int("".join(str(d) for d in dig[j:j + 3]))
+                           for j in range(0, len(nombres), 3)}
             r = chequear(valores, cand=CAND_2V)
             if r.cuadra_suma and r.cuadra_e11:
                 n_cuadra += 1
@@ -264,6 +319,8 @@ def main():
     p.add_argument("--dev", default=None)
     p.add_argument("--gris", action="store_true",
                    help="control: entrena SIN color (mismo tamaño y arquitectura)")
+    p.add_argument("--n-clases", type=int, default=None,
+                   help="por defecto se deduce del dataset (11 = con clase RELLENO)")
     p = sub.add_parser("evaluar")
     p.add_argument("dir_pdfs")
     p.add_argument("--modelo", default="digitnet_color.pt")
@@ -272,11 +329,13 @@ def main():
     p.add_argument("--dev", default=None)
     p.add_argument("--gris", action="store_true",
                    help="control: evalúa SIN color (usar con un modelo entrenado con --gris)")
+    p.add_argument("--n-clases", type=int, default=10,
+                   help="11 activa la interpretación con la clase RELLENO")
     a = ap.parse_args()
     if a.cmd == "entrenar":
-        entrenar(a.npz, a.modelo, a.epochs, a.batch, a.dev, a.gris)
+        entrenar(a.npz, a.modelo, a.epochs, a.batch, a.dev, a.gris, a.n_clases)
     elif a.cmd == "evaluar":
-        evaluar(a.dir_pdfs, a.modelo, a.desde, a.limite, a.dev, a.gris)
+        evaluar(a.dir_pdfs, a.modelo, a.desde, a.limite, a.dev, a.gris, a.n_clases)
 
 
 if __name__ == "__main__":

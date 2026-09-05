@@ -19,7 +19,32 @@ calidad de escaneo, y el mismo modelo saca 46,9 % en un tramo y 36,3 % en otro.
 2,2× sobre la base. La ganancia vino de reentrenar sobre CLAVEROS y de subir la
 resolución (28×28 binario → 48×48 en gris sin binarizar), **no del color**.
 
-## ⚠️ El cuello de botella: las aspas de anulación
+## ✅ RESUELTO (2026-09-04): la clase RELLENO
+
+| | acierto por casilla vs. escrutinio oficial |
+|---|---|
+| 10 clases (`digitnet_2v_gris.pt`) | 69,2 % |
+| **11 clases con RELLENO (`digitnet_2v_relleno.pt`)** | **96,9 %** |
+
+**+27,7 puntos.** Los errores de tipo aspa caen de **339 a 19** (−94 %).
+Medido sobre 800 actas no vistas, mismas casillas en ambos modelos.
+
+Dos consecuencias en el código, ya aplicadas:
+
+- `dirimir.py` **ya no descarta la posición de centenas**: existía sólo porque el
+  modelo viejo no sabía leer el aspa. Con RELLENO se recupera la posición más
+  discriminante (p. ej. `209 vs 76` pasa de 2 posiciones usables a 3).
+- El modelo por defecto de `dirimir.py` es ahora el de 11 clases.
+
+> Nota sobre las cifras: un 83 % medido antes sobre 12 actas y sólo casillas de
+> candidato **no es comparable** con este 69,2 %, que es sobre 800 actas e incluye
+> BLANCO/NULO/NO_MARCADO — justo donde se concentran las aspas. La comparación
+> válida es 69,2 → 96,9, con mismo tramo y mismas casillas.
+
+Lo que sigue documenta el problema tal como se diagnosticó, porque el método para
+encontrarlo vale más que el resultado.
+
+## El cuello de botella (diagnóstico original): las aspas de anulación
 
 En el E-14 las casillas anuladas se marcan con un **aspa (✱)**. Regla oficial:
 todo-aspas = 0; un número a la derecha del aspa es ese número (`✱84` = 84).
@@ -47,7 +72,7 @@ dígitos `7` de alta confianza. La distribución no deja dudas:
 Las cuatro casillas que suelen ir anuladas concentran el **90 %** de los casos;
 las dos que siempre llevan número real casi no aparecen.
 
-### Por qué no se arregla con más datos
+### Por qué no se arreglaba con más datos
 
 El autoetiquetado (`dataset_color.py`) **solo conserva las actas que cuadran**,
 es decir justamente aquellas donde el modelo ya leía bien el aspa. Los casos
